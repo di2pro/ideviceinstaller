@@ -56,6 +56,7 @@
 
 #ifdef WIN32
 #include <windows.h>
+#include <shellapi.h>
 #define wait_ms(x) Sleep(x)
 #else
 #define wait_ms(x) { struct timespec ts; ts.tv_sec = 0; ts.tv_nsec = x * 1000000; nanosleep(&ts, NULL); }
@@ -133,6 +134,10 @@ int remove_after_copy = 0;
 int skip_uninstall = 1;
 int app_only = 0;
 int docs_only = 0;
+
+#ifdef WIN32
+LPWSTR* lpArgv = NULL;
+#endif
 
 static void print_apps_header()
 {
@@ -511,6 +516,10 @@ static void parse_opts(int argc, char **argv)
 		{ NULL, 0, NULL, 0 }
 	};
 	int c;
+
+#ifdef WIN32
+    lpArgv = CommandLineToArgvW(GetCommandLineW(), &argc);
+#endif
 
 	while (1) {
 		c = getopt_long(argc, argv, "hu:nwdvb:a:s:m:", longopts, (int*)0);
@@ -1670,6 +1679,10 @@ leave_cleanup:
 	free(bundleidentifier);
 	plist_free(bundle_ids);
 	plist_free(return_attrs);
+
+#ifdef WIN32
+    free(lpArgv);
+#endif
 
 	if (err_occurred && !res) {
 		res = 128;
