@@ -671,7 +671,7 @@ static void parse_opts(int argc, char **argv)
             cmdarg = (char*)malloc(size);
             size_t mutlibyte_size = wcstombs(cmdarg, lpArgv[1], size);
             LocalFree(lpArgv);
-            if (mutlibyte_size == -1) {
+            if (mutlibyte_size == (size_t)-1) {
                 fprintf(stderr, "ERROR: Failed convert UTF filename to multibyte char.\n\n");
                 exit(2);
             }
