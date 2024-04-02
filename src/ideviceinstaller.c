@@ -57,6 +57,7 @@
 #ifdef WIN32
 #include <windows.h>
 #include <shellapi.h>
+#include <wchar.h>
 #define wait_ms(x) Sleep(x)
 #else
 #define wait_ms(x) { struct timespec ts; ts.tv_sec = 0; ts.tv_nsec = x * 1000000; nanosleep(&ts, NULL); }
@@ -517,10 +518,6 @@ static void parse_opts(int argc, char **argv)
 	};
 	int c;
 
-#ifdef WIN32
-    lpArgv = CommandLineToArgvW(GetCommandLineW(), &argc);
-#endif
-
 	while (1) {
 		c = getopt_long(argc, argv, "hu:nwdvb:a:s:m:", longopts, (int*)0);
 		if (c == -1) {
@@ -668,7 +665,19 @@ static void parse_opts(int argc, char **argv)
 				print_usage(argc+optind, argv-optind, 1);
 				exit(2);
 			}
+#ifdef WIN32
+            lpArgv = CommandLineToArgvW(GetCommandLineW(), &argc);
+            int size = wcslen(lpArgv[1]) + 1;
+            cmdarg = (char*)malloc(size);
+            int wsctombs_res = wcstombs(&cmdarg, lpArgv[1], size);
+            LocalFree(lpArgv);
+            if (wsctombs_res == -1) {
+                fprintf(stderr, "ERROR: Failed convert UTF filename to multibyte char.\n\n");
+                exit(2);
+            }
+#else
 			cmdarg = argv[1];
+#endif
 			break;
 		case CMD_UNINSTALL:
 		case CMD_ARCHIVE:
