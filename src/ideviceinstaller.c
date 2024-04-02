@@ -669,9 +669,9 @@ static void parse_opts(int argc, char **argv)
             lpArgv = CommandLineToArgvW(GetCommandLineW(), &argc);
             int size = wcslen(lpArgv[1]) + 1;
             cmdarg = (char*)malloc(size);
-            int wsctombs_res = wcstombs(&cmdarg, lpArgv[1], size);
+            size_t mutlibyte_size = wcstombs(cmdarg, lpArgv[1], size);
             LocalFree(lpArgv);
-            if (wsctombs_res == -1) {
+            if (mutlibyte_size == -1) {
                 fprintf(stderr, "ERROR: Failed convert UTF filename to multibyte char.\n\n");
                 exit(2);
             }
