@@ -806,7 +806,7 @@ static void afc_upload_dir(afc_client_t afc, const char* path, const char* afcpa
 			char *fpath = (char*)malloc(strlen(path)+1+strlen(ep->d_name)+1);
 			char *apath = (char*)malloc(strlen(afcpath)+1+strlen(ep->d_name)+1);
 #ifdef WIN32
-            wchar_t *wfpath = (wchar_t*)malloc(strlen(path)) + 1 + strlen(ep->d_name) + 1);
+            wchar_t *wfpath = (wchar_t*)malloc(strlen(path) + 1 + strlen(ep->d_name) + 1);
 #endif
 
 			struct stat st;
