@@ -805,6 +805,9 @@ static void afc_upload_dir(afc_client_t afc, const char* path, const char* afcpa
 			}
 			char *fpath = (char*)malloc(strlen(path)+1+strlen(ep->d_name)+1);
 			char *apath = (char*)malloc(strlen(afcpath)+1+strlen(ep->d_name)+1);
+#ifdef WIN32
+            wchar_t *wfpath = (wchar_t*)malloc(strlen(path)) + 1 + strlen(ep->d_name) + 1);
+#endif
 
 			struct stat st;
 
@@ -832,9 +835,7 @@ static void afc_upload_dir(afc_client_t afc, const char* path, const char* afcpa
 				afc_upload_dir(afc, fpath, apath);
 			} else {
 #ifdef WIN32
-                size_t mbs_fpath_size = strlen(fpath) + 1;
-                wchar_t* wfpath = new wchar_t[mbs_fpath_size];
-                mbstowcs(wfpath, afcpath, mbs_fpath_size];
+                mbstowcs(wfpath, afcpath, strlen(fpath) + 1);
 				afc_upload_file(afc, wfpath, apath);
 #else
 				afc_upload_file(afc, fpath, apath);
