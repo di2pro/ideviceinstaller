@@ -96,6 +96,9 @@ const char APPARCH_PATH[] = "ApplicationArchives";
 
 char *udid = NULL;
 char *cmdarg = NULL;
+#ifdef WIN32
+wchar_t *wcmdarg = NULL;
+#endif
 char *extsinf = NULL;
 char *extmeta = NULL;
 
@@ -667,17 +670,10 @@ static void parse_opts(int argc, char **argv)
 			}
 #ifdef WIN32
             lpArgv = CommandLineToArgvW(GetCommandLineW(), &argc);
-            int size = wcslen(lpArgv[1]) + 1;
-            cmdarg = (char*)malloc(size);
-            size_t mutlibyte_size = wcstombs(cmdarg, lpArgv[1], size);
+            wcmdarg = lpArgv[1];
             LocalFree(lpArgv);
-            if (mutlibyte_size == (size_t)-1) {
-                fprintf(stderr, "ERROR: Failed convert UTF filename to multibyte char.\n\n");
-                exit(2);
-            }
-#else
-			cmdarg = argv[1];
 #endif
+			cmdarg = argv[1];
 			break;
 		case CMD_UNINSTALL:
 		case CMD_ARCHIVE:
@@ -697,17 +693,30 @@ static void parse_opts(int argc, char **argv)
 	}
 }
 
+#ifdef WIN32
+static int afc_upload_file(afc_client_t afc, const wchar_t* filename, const char* dstfn)
+#else
 static int afc_upload_file(afc_client_t afc, const char* filename, const char* dstfn)
+#endif
 {
 	FILE *f = NULL;
 	uint64_t af = 0;
 	char buf[1048576];
 
+#ifdef WIN32
+    f = _wfopen(filename, L"rb");
+	if (!f) {
+		fwprintf(stderr, L"fopen: %ls: %s\n", filename, strerror(errno));
+		return -1;
+	}
+
+#else
 	f = fopen(filename, "rb");
 	if (!f) {
 		fprintf(stderr, "fopen: %s: %s\n", filename, strerror(errno));
 		return -1;
 	}
+#endif
 
 	if ((afc_file_open(afc, dstfn, AFC_FOPEN_WRONLY, &af) != AFC_E_SUCCESS) || !af) {
 		fclose(f);
@@ -744,10 +753,49 @@ static int afc_upload_file(afc_client_t afc, const char* filename, const char* d
 	return 0;
 }
 
+//#ifdef WIN32
+//static void afc_upload_dir(afc_client_t afc, const wchar_t* path, const char* afcpath)
+//#else
 static void afc_upload_dir(afc_client_t afc, const char* path, const char* afcpath)
+//#endif
 {
 	afc_make_directory(afc, afcpath);
 
+//#ifdef WIN32
+//    wchar_t* wafcpath = new wchar_t[strlen(afcpath) + 1];
+//    mbstowcs(wafcpath, afcpath, strlen(afcpath) + 1];
+//
+//    WDIR *dir = wopendir(path);
+//	if (dir) {
+//		struct wdirent* ep;
+//		while ((ep = wreaddir(dir))) {
+//			if ((wcscmp(ep->d_name, L".") == 0) || (wcscmp(ep->d_name, L"..") == 0)) {
+//				continue;
+//			}
+//			wchar_t *fpath = (wchar_t*)malloc(wcslen(path)+1+wcslen(ep->d_name)+1);
+//			wchar_t *apath = (wchar_t*)malloc(wcslen(wafcpath)+1+wcslen(ep->d_name)+1);
+//
+//			struct stat st;
+//
+//			wcscpy(fpath, path);
+//			wcscat(fpath, L"/");
+//			wcscat(fpath, ep->d_name);
+//
+//			wcscpy(apath, wafcpath);
+//			wcscat(apath, L"/");
+//			wcscat(apath, ep->d_name);
+//
+//			if ((_wstat(fpath, &st) == 0) && S_ISDIR(st.st_mode)) {
+//				afc_upload_dir(afc, fpath, apath);
+//			} else {
+//				afc_upload_file(afc, fpath, apath);
+//			}
+//			free(fpath);
+//			free(apath);
+//		}
+//		closedir(dir);
+//	}
+//#else
 	DIR *dir = opendir(path);
 	if (dir) {
 		struct dirent* ep;
@@ -790,6 +838,7 @@ static void afc_upload_dir(afc_client_t afc, const char* path, const char* afcpa
 		}
 		closedir(dir);
 	}
+//#endif
 }
 
 static char *buf_from_file(const char *filename, size_t *size)
@@ -1046,7 +1095,11 @@ run_again:
 			goto leave_cleanup;
 		}
 
+#ifdef WIN32
+        if (_wstat(wcmdarg, &fst) != 0) {
+#else
 		if (stat(cmdarg, &fst) != 0) {
+#endif
 			fprintf(stderr, "ERROR: stat: %s: %s\n", cmdarg, strerror(errno));
 			goto leave_cleanup;
 		}
@@ -1070,10 +1123,18 @@ run_again:
 
 		/* open install package */
 		int errp = 0;
+#ifdef WIN32
+        zip_error_t *ze = NULL;
+#endif
 		struct zip *zf = NULL;
 
+#ifdef WIN32
+        if ((wcslen(wcmdarg) > 5) && (wcscmp(&cmdarg[wcslen(wcmdarg)-5], L".ipcc") == 0)) {
+            zf = zip_open_from_source(zip_source_win32w_create(wcmdarg, 0, ZIP_LENGTH_TO_END, ze), 0, ze);
+#else
 		if ((strlen(cmdarg) > 5) && (strcmp(&cmdarg[strlen(cmdarg)-5], ".ipcc") == 0)) {
 			zf = zip_open(cmdarg, 0, &errp);
+#endif
 			if (!zf) {
 				fprintf(stderr, "ERROR: zip_open: %s: %d\n", cmdarg, errp);
 				goto leave_cleanup;
@@ -1175,21 +1236,36 @@ run_again:
 			}
 
 			printf("Uploading %s package contents... ", basename(cmdarg));
+//#ifdef WIN32
+//			afc_upload_dir(afc, wcmdarg, pkgname);
+//#else
 			afc_upload_dir(afc, cmdarg, pkgname);
+//#endif
 			printf("DONE.\n");
 
 			/* extract the CFBundleIdentifier from the package */
 
 			/* construct full filename to Info.plist */
+#ifdef WIN32
+            wchar_t *filename = (wchar_t*)malloc(wcslen(wcmdarg) + wcslen(L"/Info.plist") + 1);
+            wcscopy(filename, wcmdarg);
+            wcscat(filename, L"/Info.plist");
+#else
 			char *filename = (char*)malloc(strlen(cmdarg)+11+1);
 			strcpy(filename, cmdarg);
 			strcat(filename, "/Info.plist");
+#endif
 
 			struct stat st;
 			FILE *fp = NULL;
 
+#ifdef WIN32
+            if (_wstat(filename, &st) == -1 || (fp = _wfopen(filename, L"r")) == NULL) {
+                fwprintf(stderr, L"ERROR: could not locate %ls in app!\n", filename);
+#else
 			if (stat(filename, &st) == -1 || (fp = fopen(filename, "r")) == NULL) {
 				fprintf(stderr, "ERROR: could not locate %s in app!\n", filename);
+#endif
 				free(filename);
 				goto leave_cleanup;
 			}
@@ -1197,7 +1273,11 @@ run_again:
 			char *ibuf = malloc(filesize * sizeof(char));
 			size_t amount = fread(ibuf, 1, filesize, fp);
 			if (amount != filesize) {
+#ifdef WIN32
+				fwprintf(stderr, L"ERROR: could not read %u bytes from %ls\n", (uint32_t)filesize, filename);
+#else
 				fprintf(stderr, "ERROR: could not read %u bytes from %s\n", (uint32_t)filesize, filename);
+#endif
 				free(filename);
 				goto leave_cleanup;
 			}
@@ -1220,7 +1300,11 @@ run_again:
 			plist_free(info);
 			info = NULL;
 		} else {
-			zf = zip_open(cmdarg, 0, &errp);
+#ifdef WIN32
+            zf = zip_open_from_source(zip_source_win32w_create(wcmdarg, 0, ZIP_LENGTH_TO_END, ze), 0, ze);
+#else
+            zf = zip_open(cmdarg, 0, &errp);
+#endif
 			if (!zf) {
 				fprintf(stderr, "ERROR: zip_open: %s: %d\n", cmdarg, errp);
 				goto leave_cleanup;
@@ -1357,9 +1441,17 @@ run_again:
 				goto leave_cleanup;
 			}
 
+#ifdef WIN32
+			wprintf(L"Copying '%ls' to device... ", wcmdarg);
+#else
 			printf("Copying '%s' to device... ", cmdarg);
+#endif
 
-			if (afc_upload_file(afc, cmdarg, pkgname) < 0) {
+#ifdef WIN32
+			if (afc_upload_file(afc, wcmdarg, pkgname) < 0) {
+#else
+            if (afc_upload_file(afc, cmdarg, pkgname) < 0) {
+#endif
 				printf("FAILED\n");
 				free(pkgname);
 				goto leave_cleanup;
@@ -1688,10 +1780,6 @@ leave_cleanup:
 	free(bundleidentifier);
 	plist_free(bundle_ids);
 	plist_free(return_attrs);
-
-#ifdef WIN32
-    free(lpArgv);
-#endif
 
 	if (err_occurred && !res) {
 		res = 128;
