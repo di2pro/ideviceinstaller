@@ -831,9 +831,20 @@ static void afc_upload_dir(afc_client_t afc, const char* path, const char* afcpa
 			if ((stat(fpath, &st) == 0) && S_ISDIR(st.st_mode)) {
 				afc_upload_dir(afc, fpath, apath);
 			} else {
+#ifdef WIN32
+                size_t mbs_fpath_size = strlen(fpath) + 1;
+                wchar_t* wfpath = new wchar_t[mbs_fpath_size];
+                mbstowcs(wfpath, afcpath, mbs_fpath_size];
+				afc_upload_file(afc, wfpath, apath);
+#else
 				afc_upload_file(afc, fpath, apath);
+#endif
 			}
+#ifdef WIN32
+			free(wfpath);
+#else
 			free(fpath);
+#endif
 			free(apath);
 		}
 		closedir(dir);
@@ -1074,7 +1085,11 @@ run_again:
 		plist_t sinf = NULL;
 		plist_t meta = NULL;
 		char *pkgname = NULL;
+#ifdef WIN32
+		struct _stat64i32 fst;
+#else
 		struct stat fst;
+#endif
 		uint64_t af = 0;
 		char buf[8192];
 
@@ -1129,8 +1144,8 @@ run_again:
 		struct zip *zf = NULL;
 
 #ifdef WIN32
-        if ((wcslen(wcmdarg) > 5) && (wcscmp(&cmdarg[wcslen(wcmdarg)-5], L".ipcc") == 0)) {
-            zf = zip_open_from_source(zip_source_win32w_create(wcmdarg, 0, ZIP_LENGTH_TO_END, ze), 0, ze);
+        if ((wcslen(wcmdarg) > 5) && (wcscmp(&wcmdarg[wcslen(wcmdarg)-5], L".ipcc") == 0)) {
+            zf = zip_open_from_source(zip_source_win32w_create(wcmdarg, 0, -1, ze), 0, ze);
 #else
 		if ((strlen(cmdarg) > 5) && (strcmp(&cmdarg[strlen(cmdarg)-5], ".ipcc") == 0)) {
 			zf = zip_open(cmdarg, 0, &errp);
@@ -1248,7 +1263,7 @@ run_again:
 			/* construct full filename to Info.plist */
 #ifdef WIN32
             wchar_t *filename = (wchar_t*)malloc(wcslen(wcmdarg) + wcslen(L"/Info.plist") + 1);
-            wcscopy(filename, wcmdarg);
+            wcscpy(filename, wcmdarg);
             wcscat(filename, L"/Info.plist");
 #else
 			char *filename = (char*)malloc(strlen(cmdarg)+11+1);
@@ -1256,7 +1271,11 @@ run_again:
 			strcat(filename, "/Info.plist");
 #endif
 
+#ifdef WIN32
+            struct _stat64i32 st;
+#else
 			struct stat st;
+#endif
 			FILE *fp = NULL;
 
 #ifdef WIN32
@@ -1301,7 +1320,7 @@ run_again:
 			info = NULL;
 		} else {
 #ifdef WIN32
-            zf = zip_open_from_source(zip_source_win32w_create(wcmdarg, 0, ZIP_LENGTH_TO_END, ze), 0, ze);
+            zf = zip_open_from_source(zip_source_win32w_create(wcmdarg, 0, -1, ze), 0, ze);
 #else
             zf = zip_open(cmdarg, 0, &errp);
 #endif
