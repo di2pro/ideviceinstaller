@@ -58,6 +58,7 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <wchar.h>
+#include <processenv.h>
 #define wait_ms(x) Sleep(x)
 #else
 #define wait_ms(x) { struct timespec ts; ts.tv_sec = 0; ts.tv_nsec = x * 1000000; nanosleep(&ts, NULL); }
