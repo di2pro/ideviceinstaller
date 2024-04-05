@@ -673,12 +673,7 @@ static void parse_opts(int argc, char **argv)
 #ifdef WIN32
             int wargc;
             lpArgv = CommandLineToArgvW(GetCommandLineW(), &wargc);
-            wcmdarg = lpArgv[1];
-
-            int j;
-            for (j = 0; j < wargc; ++j) {
-                fwprintf(stdout, L"%ls\n", lpArgv[j]);
-            }
+            wcmdarg = lpArgv[wargc - 1];
 #endif
 			cmdarg = argv[1];
 			break;
