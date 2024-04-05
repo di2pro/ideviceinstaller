@@ -671,7 +671,6 @@ static void parse_opts(int argc, char **argv)
 #ifdef WIN32
             lpArgv = CommandLineToArgvW(GetCommandLineW(), &argc);
             wcmdarg = lpArgv[1];
-            LocalFree(lpArgv);
 #endif
 			cmdarg = argv[1];
 			break;
@@ -1800,6 +1799,10 @@ leave_cleanup:
 	free(bundleidentifier);
 	plist_free(bundle_ids);
 	plist_free(return_attrs);
+
+#ifdef WIN32
+            LocalFree(lpArgv);
+#endif
 
 	if (err_occurred && !res) {
 		res = 128;
