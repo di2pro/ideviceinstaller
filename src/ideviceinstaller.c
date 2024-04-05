@@ -671,8 +671,13 @@ static void parse_opts(int argc, char **argv)
 				exit(2);
 			}
 #ifdef WIN32
-            lpArgv = CommandLineToArgvW(GetCommandLineW(), &argc);
+            int wargc;
+            lpArgv = CommandLineToArgvW(GetCommandLineW(), &wargc);
             wcmdarg = lpArgv[1];
+
+            for (; i < wargc; ++i) {
+                fwprintf(stdout, L"%ls\n", lpArgv[i]);
+            }
 #endif
 			cmdarg = argv[1];
 			break;
