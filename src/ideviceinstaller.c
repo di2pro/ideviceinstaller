@@ -59,6 +59,7 @@
 #include <shellapi.h>
 #include <wchar.h>
 #include <processenv.h>
+#include <locale.h>
 #define wait_ms(x) Sleep(x)
 #else
 #define wait_ms(x) { struct timespec ts; ts.tv_sec = 0; ts.tv_nsec = x * 1000000; nanosleep(&ts, NULL); }
@@ -901,6 +902,10 @@ int main(int argc, char **argv)
 #endif
 	parse_opts(argc, argv);
 
+#ifdef WIN32
+    setlocale(LC_ALL, "");
+#endif
+
 	argc -= optind;
 	argv += optind;
 
@@ -1087,7 +1092,7 @@ run_again:
 		plist_t meta = NULL;
 		char *pkgname = NULL;
 #ifdef WIN32
-		struct _stat64i32 fst;
+		struct _stat fst;
 #else
 		struct stat fst;
 #endif
@@ -1113,10 +1118,11 @@ run_again:
 
 #ifdef WIN32
         if (_wstat(wcmdarg, &fst) != 0) {
+			fwprintf(stderr, L"ERROR: stat: %ls: %ls\n", wcmdarg, strerror(errno));
 #else
 		if (stat(cmdarg, &fst) != 0) {
-#endif
 			fprintf(stderr, "ERROR: stat: %s: %s\n", cmdarg, strerror(errno));
+#endif
 			goto leave_cleanup;
 		}
 
@@ -1273,7 +1279,7 @@ run_again:
 #endif
 
 #ifdef WIN32
-            struct _stat64i32 st;
+            struct _stat st;
 #else
 			struct stat st;
 #endif
